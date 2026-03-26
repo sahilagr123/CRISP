@@ -1,0 +1,42 @@
+# Ablation: Qwen3-4B base with no_box_penalty disabled.
+# Tests whether the -0.5 penalty for missing \boxed{} is necessary for Qwen models.
+# Per CPMobius/R-Zero, Qwen models reliably produce \boxed{} without penalty.
+
+training:
+  model_name: "Qwen/Qwen3-4B"
+  coach_model_name: "Qwen/Qwen3-14B"
+  num_iterations: 3000
+  checkpoint_dir: "checkpoints/ds"
+  save_freq: 10
+  eval_freq: 25
+  eval_dataset: "aime24"
+  eval_n_problems: 30
+  eval_n_samples: 8
+  attn_implementation: "sdpa"
+
+infra:
+  num_gpus_per_node: 4
+  vllm_num_engines: 1
+  vllm_enable_sleep: false
+  max_model_len: 40960
+  zero_stage: 2
+  bf16: true
+  learning_rate: 0.00001
+  vllm_gpu_memory_utilization: 0.90
+  coach_vllm_gpu_memory_utilization: 0.90
+  coach_vllm_max_model_len: 40960
+  adam_offload: true
+
+player:
+  rollouts_per_problem: 8
+  alice_temperature: 0.8
+  bob_temperature: 1.0
+  max_new_tokens: 12288
+  no_box_penalty: 0.0
+
+coach:
+  batch_size: 8
+  warmup_iters: 5
+  rampup_iters: 75
+  repetition_window: 10
+  coach_solve_max_new_tokens: 12288

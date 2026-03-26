@@ -1,0 +1,45 @@
+# DSI cluster config: Qwen3-4B (non-thinking) player + Qwen3-14B coach on 4×H200.
+# Same as dsi_h200.yaml but uses the base (non-instruct) player model for
+# stronger training signal — instruct model already saturates AIME benchmarks.
+#
+# GPU layout: GPU 0 = Player vLLM, GPU 1 = Coach vLLM,
+#             GPU 2 = Alice + Bob DeepSpeed, GPU 3 = Coach DeepSpeed.
+
+training:
+  model_name: "Qwen/Qwen3-4B"
+  coach_model_name: "Qwen/Qwen3-14B"
+  num_iterations: 3000
+  checkpoint_dir: "checkpoints/ds_base"
+  save_freq: 10
+  eval_freq: 20
+  eval_dataset: "aime25"
+  eval_n_problems: 30
+  eval_n_samples: 8
+  attn_implementation: "sdpa"
+
+infra:
+  num_gpus_per_node: 4
+  vllm_num_engines: 1
+  vllm_enable_sleep: false
+  max_model_len: 40960
+  zero_stage: 2
+  bf16: true
+  learning_rate: 0.000001
+  vllm_gpu_memory_utilization: 0.90
+  coach_vllm_gpu_memory_utilization: 0.90
+  coach_vllm_max_model_len: 40960
+  adam_offload: true
+
+player:
+  rollouts_per_problem: 8
+  alice_temperature: 0.8
+  bob_temperature: 1.0
+  max_new_tokens: 12288
+  no_box_penalty: -0.5
+
+coach:
+  batch_size: 8
+  warmup_iters: 5
+  rampup_iters: 75
+  repetition_window: 10
+  coach_solve_max_new_tokens: 12288

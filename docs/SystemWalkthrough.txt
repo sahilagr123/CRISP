@@ -1,0 +1,63 @@
+End to End Walkthrough (Main Loop)
+Step 1: Coach generates a batch of 8 problems. The coach generates each problem in /no_think mode (fast, no chain-of-thought) and immediately solves it in /think mode (deep reasoning). This produces a ground truth answer ŷ for each problem. If a generated problem is malformed (no extractable problem statement or no boxed answer in the self-solve), it receives r_coach = 0 and is discarded from the player batch. Replacement problems are not generated — the batch proceeds with however many well-formed problems survive (typically 7-8 out of 8).
+Step 2: Both players generate 8 rollouts per problem independently. For each of the 8 problems, Player 1 (Alice) generates 8 candidate solutions and Player 2 (Bob) generates 8 candidate solutions. This produces 128 total sequences (8 problems × 8 rollouts × 2 players). Each rollout is a full chain-of-thought response ending with a \boxed{} answer.
+Step 3: Verify rollouts against ground truth. Each rollout is checked against the coach's ground truth answer ŷ using the SymPy verifier, which tries three strategies in order: exact string match, numeric comparison (within tolerance), and SymPy symbolic equivalence — all comparing the contents of the \boxed{} sections. A rollout is marked correct if any strategy succeeds.
+Step 4: Compute pre-discussion rewards. For each rollout, per player:
+r_solve = 1   if answer matches ground truth
+r_solve = 0   if answer is wrong
+r_solve = -0.5  if no \boxed{} answer was extracted (format penalty)
+[Note: The rationale for the -0.5 is that producing no extractable answer is actively worse than a wrong answer since it wastes compute and provides no signal. This creates a strong gradient away from format failures, which is especially important early in training when a base model has no prior exposure to the boxed answer format. If format compliance reaches >95%, we can soften this to 0.]
+Step 5: Compute majority answers and trigger discussion. For each problem, the system computes the majority answer for each player across their 8 rollouts (the most common answer, with ties broken by taking the first occurrence). It then checks whether the two players' majority answers agree using the SymPy verifier. If they disagree, discussion is triggered for that problem.
+Step 6: Discussion. For each problem where discussion was triggered, the system selects one representative rollout from each player: for the player with the correct majority answer, the rollout with the highest log-probability under the current policy (the most "natural" correct solution); for the player with the incorrect majority answer, a rollout matching their majority answer. If neither player has the correct majority answer, the longest rollout from each is selected.
+Each player receives a structured prompt containing the problem, their own shared solution, and their peer's shared solution. They generate a response with two segments:
+EVALUATION: [analysis of both solutions, identifying errors and strengths]
+FINAL ANSWER: \boxed{[revised answer]}
+The segment boundary is detected by searching for the FINAL ANSWER: delimiter. If the delimiter is not found, the entire response is treated as the answer segment (no evaluation reward, only correctness).
+Step 7: Compute post-discussion rewards. Two reward signals are computed for problems where discussion occurred:
+Persuader bonus (applied to pre-discussion rollouts): For each discussed problem, if Player i had the correct majority answer and the peer flipped from wrong to correct after discussion, a bonus of γ₁ = 0.3 is added to all of Player i's correct rollouts on that problem. So each correct rollout's total reward becomes r_solve + 0.3 = 1.3. Incorrect rollouts from the persuading player remain at their original r_solve. This rewards the player's ability to produce correct reasoning on problems where correctness was valuable enough to help a peer, rather than attributing persuasiveness to one arbitrarily selected rollout.
+Post-discussion reward (applied to the post-discussion response): The post-discussion response receives a single scalar reward: r_post = 1 if the final boxed answer matches ground truth, 0 otherwise. Standard binary correctness. The value of the post-discussion response is not the reward itself — it's that the response exists in the training batch at all, representing a trajectory the player could only reach after exposure to peer reasoning. GRPO reinforces these token sequences, making them more probable even without a peer present at eval time.
+[Note: the structured EVALUATION / FINAL ANSWER format is retained in the prompt template even though both segments receive the same reward. The format is useful for interpretability (we can inspect what the model says about peer reasoning) and as scaffolding for future segment-level credit assignment if we find a reliable way to independently verify evaluation quality.]
+Step 8: Build the GRPO training batch for each player. For Player i, the training batch contains:
+~50-64 pre-discussion sequences (8 problems × 8 rollouts, minus any filtered by dynamic sampling), each with a scalar reward: r_solve for most, r_solve + γ₁ for correct rollouts on problems where the player was the persuader
+~3-4 post-discussion sequences (one per discussed problem), each with a scalar reward: r_post
+Dynamic sampling filters out problems where all 8 pre-discussion rollouts were (all correct or all wrong where wrong includes {-0.5, 0}). These problems produce zero advantage variance and waste gradient computation. Filtered problems still contribute to coach reward computation. Post-discussion responses are never filtered since each one is a unique trajectory worth reinforcing.
+Step 9: Compute advantages. Rewards are converted to advantages using two normalization pools per player, with EMA smoothing for the smaller pool:
+Pool 1 — Pre-discussion rollouts (large pool, ~50-64 sequences after filtering):
+mean_pre = mean of all pre-discussion rewards in this batch
+std_pre  = std of all pre-discussion rewards in this batch
+
+For each pre-discussion rollout j:
+    Â_j = (r_j - mean_pre) / (std_pre + ε)
+No EMA needed — the pool is large enough for stable per-batch statistics. The reward distribution in this pool is mostly 0s and 1s, with clusters of 1.3s on discussed problems where the player was the correct persuader.
+Pool 2 — Post-discussion responses (small pool, ~3-4 sequences):
+μ_post_ema ← (1 - η) · μ_post_ema + η · mean(current post-discussion rewards)
+σ²_post_ema ← (1 - η) · σ²_post_ema + η · var(current post-discussion rewards)
+
+For each post-discussion response:
+    Â_post = (r_post - μ_post_ema) / (sqrt(σ²_post_ema) + ε)
+EMA smoothing hyperparameter η = 0.2 (effective window ~5 batches / ~20 post-discussion samples). Initialized at μ = 0.5, σ² = 0.25 for the first batch. This ensures stable normalization even when only 3-4 discussion responses exist per batch, and degrades gracefully as the discussion trigger rate drops (players converge, fewer disagreements).
+Each player maintains entirely independent pool statistics — Player 1's means and variances are computed only from Player 1's rewards, Player 2's only from Player 2's. No cross-player normalization at any level. This is the Dr. MAS principle: each agent lives in its own reward universe.
+Step 10: GRPO gradient update for each player. All sequences (pre-discussion + post-discussion) enter the same loss computation with their per-sequence advantages:
+L(θᵢ) = -Σ_t [ min(ρ_t · Â_t, clip(ρ_t, 1-ε_low(t), 1+ε_high(t)) · Â_t) ]
+         + β_JS · D_JS(π_θᵢ || π_ref)
+Where ε_low(t) and ε_high(t) are DCPO token-adaptive clipping bounds (tokens with lower prior probability receive wider exploration bounds), the loss is averaged across all tokens in all sequences (token-level mean), overlong reward shaping penalizes excessively long chains, and the JS-divergence penalty (β_JS = 0.001) maintains policy diversity between players.
+Pre-discussion rollouts:   L_max = 8,192,  buffer = 2,048  (L_hard = 10,240)
+Post-discussion responses:  L_max = 4,096,  buffer = 1,024  (L_hard = 5,120)
+Step 11: Compute coach rewards. For each of the 8 problems, the coach receives:
+r_coach(x) = max(0, r_uncertainty(x) + r_discussion(x) - r_repetition(x))
+Where:
+Uncertainty reward: r_uncertainty = 1 − 2|p̂(x) − 0.5|, where p̂ is the average solve rate across both players' rollouts against coach ground truth. Peaks at 50% difficulty. Theoretically grounded: PCL (arXiv:2510.01135) proves GRPO gradient magnitude is maximized at p̂ = 0.5, independently confirmed by VCRL, Actor-Curator, AZR, and STP.
+Discussion productivity bonus: r_discussion = α (0.3) if discussion resolved correctly (wrong player flipped to right), α/2 (0.15) if discussion occurred but resolved incorrectly or maintained disagreement, 0 if no discussion occurred. This is a per-problem signal that CPMöbius's batch-level Δt cannot provide — it directly incentivizes the coach to generate problems in the Mazur zone (30–70% correctness) where productive disagreement is most likely.
+Repetition penalty with sliding window: R-Diverse (arXiv:2602.13103, Feb 2026) diagnoses a critical failure mode in within-batch-only repetition penalties: "Local Diversity Illusion," where the coach satisfies within-batch diversity constraints while cycling through the same problem types across iterations. Their empirical finding is that R-Zero's within-batch repetition penalty steadily decreases while actual cross-iteration repetition steadily increases — the penalty gives a false sense of diversity.
+We address this with a sliding window memory buffer. All problems are encoded using a frozen sentence encoder (all-MiniLM-L6-v2, 384-dim). The system maintains a FIFO buffer H of embeddings from the last W batches (W = 10, meaning ~80 problems). 
+After the batch completes, push the current batch's embeddings into the buffer and pop the oldest batch if |H| exceeds W batches. The cross-batch component only activates once the buffer is full (first W = 10 batches use within-batch penalty only), providing a natural warm-up period where the coach explores freely before the history constraint kicks in.
+Parameters: τ_sim = 0.85 (cosine similarity threshold, adapted from R-Zero's τ_BLEU = 0.5), λ = 2.5 (penalty scale), W = 10 batches (sweep {5, 10, 20}). The buffer is lightweight (~120KB for 80 × 384-dim embeddings) and the cosine similarity computation against it is negligible.
+Step 12: GRPO gradient update for coach. Advantages computed with EMA-smoothed normalization (same η = 0.2):
+μ_coach_ema ← (1 - η) · μ_coach_ema + η · mean(current coach rewards)
+σ²_coach_ema ← (1 - η) · σ²_coach_ema + η · var(current coach rewards)
+
+For each problem i:
+    Â_i = (r_coach(x_i) - μ_coach_ema) / (sqrt(σ²_coach_ema) + ε)
+GRPO update on the coach policy with DCPO token-adaptive clipping and JS-divergence (β = 0.001, self-referencing — prevents mode collapse). The coach updates every batch, simultaneous with the players, keeping the difficulty calibration responsive to player improvement.
+Step 13: Repeat from Step 1.
+

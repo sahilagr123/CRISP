@@ -1,0 +1,40 @@
+# Smoke test config: Qwen3-4B player + Qwen3-14B coach on 4×H100.
+# Alice (systematic, temp=0.6) vs Bob (exploratory, temp=0.8)
+# GPU 0: Player vLLM (dedicated)
+# GPU 1: Coach vLLM (dedicated)
+# GPU 2: Player training (DeepSpeed) + Ref model
+# GPU 3: Coach training (DeepSpeed)
+# Usage: modal run scripts/modal_smoke.py
+
+training:
+  model_name: "Qwen/Qwen3-4B-Instruct-2507"
+  coach_model_name: "Qwen/Qwen3-14B"
+  num_iterations: 20
+  eval_freq: 0
+  save_freq: 0
+  attn_implementation: "sdpa"
+
+infra:
+  num_gpus_per_node: 4
+  vllm_num_engines: 1
+  vllm_enable_sleep: false  # dedicated GPUs, no time-sharing needed
+  max_model_len: 32768  # player: 8192 gen + discussion prompt headroom
+  zero_stage: 2
+  bf16: true
+  learning_rate: 0.00001
+  vllm_gpu_memory_utilization: 0.90  # dedicated GPU
+  coach_vllm_gpu_memory_utilization: 0.90  # dedicated GPU
+  coach_vllm_max_model_len: 16384  # coach: 2048 gen + 4096 solve + headroom
+  adam_offload: true  # required for 14B coach on H100 (80GB)
+
+player:
+  rollouts_per_problem: 8
+  alice_temperature: 0.8
+  bob_temperature: 1.0
+  max_new_tokens: 8192  # safe with gradient checkpointing (forward peak ~11GB for L=9500)
+
+coach:
+  batch_size: 4
+  warmup_iters: 3      # AMC 10 anchor (short warmup for smoke test)
+  rampup_iters: 10     # AMC 12 anchor (then pure accuracy-driven)
+  repetition_window: 3  # activate penalty early in short smoke test

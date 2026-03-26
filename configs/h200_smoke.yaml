@@ -1,0 +1,42 @@
+# H200 production smoke test: full production settings, 5 iterations.
+# Validates two-player architecture (ds_alice/ds_bob) with H200 token limits.
+# GPU layout: GPU 0 = Player vLLM (shared, sequential weight sync per player),
+#             GPU 1 = Coach vLLM,
+#             GPU 2 = Alice DeepSpeed + Bob DeepSpeed + Ref (CPU),
+#             GPU 3 = Coach DeepSpeed.
+#
+# Usage: modal run scripts/modal_two_player_smoke.py
+
+training:
+  model_name: "Qwen/Qwen3-4B-Instruct-2507"
+  coach_model_name: "Qwen/Qwen3-14B"
+  num_iterations: 5
+  eval_freq: 0
+  save_freq: 0
+  attn_implementation: "sdpa"
+
+infra:
+  num_gpus_per_node: 4
+  vllm_num_engines: 1
+  vllm_enable_sleep: false
+  max_model_len: 40960
+  zero_stage: 2
+  bf16: true
+  learning_rate: 0.00001
+  vllm_gpu_memory_utilization: 0.90
+  coach_vllm_gpu_memory_utilization: 0.90
+  coach_vllm_max_model_len: 40960
+  adam_offload: true
+
+player:
+  rollouts_per_problem: 8
+  alice_temperature: 0.8
+  bob_temperature: 1.0
+  max_new_tokens: 12288
+
+coach:
+  batch_size: 8
+  warmup_iters: 3         # AMC 10 anchor (short for smoke test)
+  rampup_iters: 75
+  repetition_window: 3    # activate penalty early
+  coach_solve_max_new_tokens: 12288

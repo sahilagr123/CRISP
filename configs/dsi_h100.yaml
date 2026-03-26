@@ -1,0 +1,46 @@
+# DSI cluster config: Qwen3-4B player + Qwen3-14B coach on 4×H100 (80GB).
+# GPU layout: same as H200 — GPU 0 = Player vLLM, GPU 1 = Coach vLLM,
+#             GPU 2 = Alice DS + Bob DS + Ref (CPU), GPU 3 = Coach DS.
+#
+# H100 (80GB) is tighter than H200 (141GB):
+#   - Coach vLLM: 28GB model + ~44GB KV cache (0.90 × 80 - 28)
+#   - Coach training: 28GB + 28GB grads = ~56GB + activations (tight)
+#   - Player vLLM: 8GB model + ~64GB KV cache
+#   - GPU 2: ~32GB peak two players with GC, ~48GB headroom
+#
+# Key differences from H200: lower max_model_len/max_new_tokens to fit KV cache.
+
+training:
+  model_name: "Qwen/Qwen3-4B-Instruct-2507"
+  coach_model_name: "Qwen/Qwen3-14B"
+  num_iterations: 3000
+  checkpoint_dir: "checkpoints/ds"
+  save_freq: 10
+  eval_freq: 0
+  attn_implementation: "sdpa"
+
+infra:
+  num_gpus_per_node: 4
+  vllm_num_engines: 1
+  vllm_enable_sleep: false
+  max_model_len: 32768
+  zero_stage: 2
+  bf16: true
+  learning_rate: 0.00001
+  vllm_gpu_memory_utilization: 0.90
+  coach_vllm_gpu_memory_utilization: 0.90
+  coach_vllm_max_model_len: 16384      # tighter KV budget on 80GB
+  adam_offload: true
+
+player:
+  rollouts_per_problem: 8
+  alice_temperature: 0.8
+  bob_temperature: 1.0
+  max_new_tokens: 8192
+
+coach:
+  batch_size: 8
+  warmup_iters: 5
+  rampup_iters: 75
+  repetition_window: 10
+  coach_solve_max_new_tokens: 8192

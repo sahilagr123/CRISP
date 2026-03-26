@@ -1,0 +1,28 @@
+# Example CRISP config for single-GPU debug training.
+# Usage: crisp-train --config configs/example.yaml
+
+training:
+  model_name: "Qwen/Qwen3-0.6B"        # Override default for debug (small model)
+  coach_model_name: "Qwen/Qwen3-0.6B"   # Override default for debug (same small model)
+  num_iterations: 10
+  checkpoint_dir: "checkpoints/debug"
+  save_freq: 5
+  log_freq: 1
+  eval_freq: 5                           # Eval every 5 iterations
+  eval_n_problems: 20                    # Small subset for debug
+  attn_implementation: "eager"
+
+infra:
+  num_gpus_per_node: 1
+  zero_stage: 2
+  bf16: true
+  learning_rate: 0.00001
+  vllm_num_engines: 1
+  vllm_enable_sleep: true
+
+player:
+  rollouts_per_problem: 4
+
+coach:
+  update_freq: 5
+  batch_size: 4

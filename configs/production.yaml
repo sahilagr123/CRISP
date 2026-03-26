@@ -1,0 +1,41 @@
+# Production config: Qwen3-4B player + Qwen3-14B coach on 4×H100.
+# GPU layout same as smoke_test.yaml.
+# Checkpoints saved to checkpoint_dir every save_freq iterations.
+# HF-format weights saved at end (or on SIGTERM) for portability.
+#
+# Resume on Modal:   --resume /checkpoints
+# Resume elsewhere:  set model_name to saved HF weights path
+
+training:
+  model_name: "Qwen/Qwen3-4B-Instruct-2507"
+  coach_model_name: "Qwen/Qwen3-14B"
+  num_iterations: 3000
+  checkpoint_dir: "/checkpoints/ds"
+  save_freq: 5
+  eval_freq: 0        # eval at end via scripts/eval_model.py
+  attn_implementation: "sdpa"
+
+infra:
+  num_gpus_per_node: 4
+  vllm_num_engines: 1
+  vllm_enable_sleep: false
+  max_model_len: 32768
+  zero_stage: 2
+  bf16: true
+  learning_rate: 0.00001
+  vllm_gpu_memory_utilization: 0.90
+  coach_vllm_gpu_memory_utilization: 0.90
+  coach_vllm_max_model_len: 16384
+  adam_offload: true
+
+player:
+  rollouts_per_problem: 8   # 128 seqs split into sub-batches of 64 via gradient accumulation
+  alice_temperature: 0.8
+  bob_temperature: 1.0
+  max_new_tokens: 8192
+
+coach:
+  batch_size: 8
+  warmup_iters: 0       # skip AMC 10 warmup — coach formats fine from start
+  rampup_iters: 75      # Phase 2 (AMC 12/AIME) for first 75 iters, then pure accuracy-driven
+  repetition_window: 10

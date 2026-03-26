@@ -1,0 +1,46 @@
+# DSI cluster config: Qwen3-4B player + Qwen3-14B coach on 4×H200 (141GB).
+# GPU layout: GPU 0 = Player vLLM (shared, sequential weight sync per player),
+#             GPU 1 = Coach vLLM,
+#             GPU 2 = Alice DeepSpeed + Bob DeepSpeed + Ref (CPU),
+#             GPU 3 = Coach DeepSpeed.
+#
+# H200 (141GB) gives massive headroom over H100 (80GB):
+#   - Coach vLLM: 28GB model + 100GB+ KV cache
+#   - Coach training: 28GB model + 28GB grads + optimizer on CPU = ~56GB + activations
+#   - Player vLLM: 8GB model + 120GB+ KV cache
+#   - GPU 2: ~27GB peak each player with GC = ~54GB total, 87GB headroom
+
+training:
+  model_name: "Qwen/Qwen3-4B-Instruct-2507"
+  coach_model_name: "Qwen/Qwen3-14B"
+  num_iterations: 3000
+  checkpoint_dir: "checkpoints/ds"
+  save_freq: 10
+  eval_freq: 0
+  attn_implementation: "sdpa"
+
+infra:
+  num_gpus_per_node: 4
+  vllm_num_engines: 1
+  vllm_enable_sleep: false
+  max_model_len: 40960
+  zero_stage: 2
+  bf16: true
+  learning_rate: 0.000001
+  vllm_gpu_memory_utilization: 0.90
+  coach_vllm_gpu_memory_utilization: 0.90
+  coach_vllm_max_model_len: 40960    # Qwen3-14B max_position_embeddings=40960
+  adam_offload: true
+
+player:
+  rollouts_per_problem: 8
+  alice_temperature: 0.8
+  bob_temperature: 1.0
+  max_new_tokens: 12288
+
+coach:
+  batch_size: 8
+  warmup_iters: 5         # Phase 1: easy AMC 10 warmup
+  rampup_iters: 75        # Phase 2: AMC 12/AIME
+  repetition_window: 10
+  coach_solve_max_new_tokens: 12288  # more thinking room = fewer false "unsolvable"

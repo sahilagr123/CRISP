@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "crisp"
+version = "0.1.0"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.24",
+    "sympy>=1.12",
+    "torch>=2.1",
+    "sentence-transformers>=2.2",
+    "scipy>=1.11",
+    "pyyaml>=6.0",
+]
+
+[project.scripts]
+crisp-train = "crisp.train:main"
+
+[project.optional-dependencies]
+dev = ["pytest>=7.4", "pytest-cov"]
+eval = ["datasets>=2.14"]
+infra = [
+    "ray>=2.9",
+    "vllm>=0.8.2",
+    "deepspeed>=0.16.4",
+    "peft>=0.7",
+    "packaging",
+]
+
+[tool.setuptools.packages.find]
+include = ["crisp*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "gpu: requires GPU (deselect with '-m not gpu')",
+    "integration: integration tests with mock models",
+]

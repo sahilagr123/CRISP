@@ -1,0 +1,164 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1050 1230" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#555"/>
+    </marker>
+    <marker id="arrow-green" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#4a9e4a"/>
+    </marker>
+    <marker id="arrow-orange" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#e08a2b"/>
+    </marker>
+    <filter id="shadow" x="-2%" y="-2%" width="104%" height="104%">
+      <feDropShadow dx="0" dy="1" stdDeviation="2" flood-color="#00000015"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1050" height="1230" fill="white"/>
+
+  <!-- Title -->
+  <text x="525" y="38" text-anchor="middle" font-size="28" font-weight="700" fill="#1a1a1a">CRISP Pipeline</text>
+  <text x="525" y="62" text-anchor="middle" font-size="13" fill="#777">Coach generates → Players solve → Disagreement triggers discussion → All update via GRPO</text>
+
+  <!-- ======================== LOOP-BACK PATHS (drawn first, behind everything) ======================== -->
+  
+  <!-- Player loop path: from Player GRPO (RIGHT) → right side → up → into Alice -->
+  <polyline points="755,1150 755,1200 975,1200 975,135 690,135" fill="none" stroke="#4a9e4a" stroke-width="2.5" marker-end="url(#arrow-green)" opacity="0.7"/>
+  <!-- Player loop label (vertical, right side) -->
+  <text x="988" y="700" text-anchor="middle" font-size="12" font-weight="600" fill="#4a9e4a" letter-spacing="0.5" transform="rotate(90, 988, 700)">Player loop — next iteration</text>
+
+  <!-- Coach loop path: from Coach GRPO (LEFT) → left side → up → into Coach Generates -->
+  <polyline points="275,1150 275,1200 72,1200 72,165 93,165" fill="none" stroke="#e08a2b" stroke-width="2.5" marker-end="url(#arrow-orange)" opacity="0.7"/>
+  <!-- Coach loop label (vertical, left side) -->
+  <text x="60" y="700" text-anchor="middle" font-size="12" font-weight="600" fill="#e08a2b" letter-spacing="0.5" transform="rotate(-90, 60, 700)">Coach loop — recalibrate difficulty</text>
+
+  <!-- ================================================================ -->
+  <!-- STEP 1: COACH GENERATES -->
+  <!-- ================================================================ -->
+  <rect x="95" y="95" width="240" height="140" rx="6" fill="#f5ecd0" stroke="#d4c480" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="215" y="122" text-anchor="middle" font-size="11" fill="#888" font-weight="600">STEP 1</text>
+  <text x="215" y="143" text-anchor="middle" font-size="16" font-weight="700" fill="#333">Coach Generates</text>
+  <line x1="135" y1="155" x2="295" y2="155" stroke="#d4c480" stroke-width="0.8"/>
+  <text x="215" y="174" text-anchor="middle" font-size="11" fill="#666">8 problems per batch</text>
+  <text x="215" y="192" text-anchor="middle" font-size="11" fill="#666">Self-solves for ground truth</text>
+  <text x="215" y="210" text-anchor="middle" font-size="11" fill="#666">Filters malformed outputs</text>
+
+  <!-- Arrow from Coach to Alice/Bob area -->
+  <line x1="335" y1="140" x2="390" y2="140" stroke="#555" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="335" y1="200" x2="390" y2="200" stroke="#555" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- ================================================================ -->
+  <!-- STEP 2: SOLVE -->
+  <!-- ================================================================ -->
+  <text x="525" y="98" text-anchor="middle" font-size="12" font-weight="700" fill="#333">STEP 2: SOLVE</text>
+
+  <!-- Alice -->
+  <rect x="400" y="108" width="290" height="60" rx="6" fill="#d6e6f5" stroke="#8fb8de" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="490" y="133" text-anchor="middle" font-size="14" font-weight="700" fill="#2a6496">Alice</text>
+  <text x="590" y="133" text-anchor="middle" font-size="13" font-weight="600" fill="#333">T=0.8, systematic</text>
+  <text x="545" y="155" text-anchor="middle" font-size="11" fill="#666">Qwen3-4B · 8 rollouts × 8 problems</text>
+
+  <!-- Bob -->
+  <rect x="400" y="185" width="290" height="60" rx="6" fill="#d6e6f5" stroke="#8fb8de" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="490" y="210" text-anchor="middle" font-size="14" font-weight="700" fill="#2a6496">Bob</text>
+  <text x="590" y="210" text-anchor="middle" font-size="13" font-weight="600" fill="#333">T=1.0, exploratory</text>
+  <text x="545" y="232" text-anchor="middle" font-size="11" fill="#666">Qwen3-4B · 8 rollouts × 8 problems</text>
+
+  <!-- Arrow from Step 2 down to Step 3 -->
+  <line x1="525" y1="245" x2="525" y2="290" stroke="#555" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- ================================================================ -->
+  <!-- STEP 3: VERIFY -->
+  <!-- ================================================================ -->
+  <rect x="315" y="300" width="420" height="70" rx="6" fill="#e8e8e8" stroke="#bbb" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="525" y="328" text-anchor="middle" font-size="15" font-weight="700" fill="#333">STEP 3: VERIFY</text>
+  <text x="525" y="352" text-anchor="middle" font-size="11.5" fill="#666">Extract \boxed{} answers · Check vs coach ground truth (SymPy)</text>
+
+  <!-- Arrow from Step 3 down to Step 4 -->
+  <line x1="525" y1="370" x2="525" y2="415" stroke="#555" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- ================================================================ -->
+  <!-- STEP 4: DISAGREE? -->
+  <!-- ================================================================ -->
+  <!-- Diamond shape -->
+  <polygon points="525,420 680,480 525,540 370,480" fill="#f5ecd0" stroke="#d4c480" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="525" y="472" text-anchor="middle" font-size="14" font-weight="700" fill="#333">STEP 4: DISAGREE?</text>
+  <text x="525" y="494" text-anchor="middle" font-size="11" fill="#666">Majority vote per player</text>
+
+  <!-- "Agree" path to the right -->
+  <text x="700" y="462" text-anchor="start" font-size="13" font-weight="700" fill="#4a9e4a">Agree</text>
+  <line x1="680" y1="480" x2="740" y2="480" stroke="#4a9e4a" stroke-width="1.5" marker-end="url(#arrow-green)"/>
+  <!-- Skip discussion box -->
+  <rect x="750" y="458" width="140" height="44" rx="5" fill="#f0f0f0" stroke="#bbb" stroke-width="1"/>
+  <text x="820" y="477" text-anchor="middle" font-size="12" font-weight="600" fill="#555">Skip discussion</text>
+  <text x="820" y="493" text-anchor="middle" font-size="10.5" fill="#888">r_solve only</text>
+
+  <!-- "Disagree" path downward -->
+  <text x="545" y="558" text-anchor="start" font-size="13" font-weight="700" fill="#c0392b">Disagree</text>
+  <line x1="525" y1="540" x2="525" y2="580" stroke="#555" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- Skip discussion arrow: goes right then down to merge at Step 7 -->
+  <polyline points="890,480 930,480 930,880" fill="none" stroke="#888" stroke-width="1.5" stroke-dasharray="6,4"/>
+  <line x1="930" y1="880" x2="930" y2="908" stroke="#888" stroke-width="1.5" stroke-dasharray="6,4" marker-end="url(#arrow)"/>
+
+  <!-- ================================================================ -->
+  <!-- STEP 5: DISCUSSION -->
+  <!-- ================================================================ -->
+  <rect x="340" y="590" width="370" height="100" rx="6" fill="#e8dff0" stroke="#b8a2d0" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="525" y="622" text-anchor="middle" font-size="15" font-weight="700" fill="#5b3a8a">STEP 5: DISCUSSION</text>
+  <line x1="380" y1="633" x2="670" y2="633" stroke="#b8a2d0" stroke-width="0.8"/>
+  <text x="525" y="655" text-anchor="middle" font-size="11.5" fill="#666">Select representative rollout per player</text>
+  <text x="525" y="675" text-anchor="middle" font-size="11.5" fill="#666">Alice &amp; Bob exchange reasoning · Each evaluates peer's solution</text>
+
+  <!-- Arrow from Step 5 down to Step 6 -->
+  <line x1="525" y1="690" x2="525" y2="730" stroke="#555" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- ================================================================ -->
+  <!-- STEP 6: RE-ANSWER -->
+  <!-- ================================================================ -->
+  <rect x="340" y="740" width="370" height="70" rx="6" fill="#e8dff0" stroke="#b8a2d0" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="525" y="770" text-anchor="middle" font-size="15" font-weight="700" fill="#5b3a8a">STEP 6: RE-ANSWER</text>
+  <text x="525" y="794" text-anchor="middle" font-size="11.5" fill="#666">EVALUATION + FINAL ANSWER · Verify against ground truth</text>
+
+  <!-- Arrow from Step 6 down to Step 7 -->
+  <line x1="525" y1="810" x2="525" y2="860" stroke="#555" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- ================================================================ -->
+  <!-- STEP 7: COMPUTE REWARDS -->
+  <!-- ================================================================ -->
+  <text x="525" y="880" text-anchor="middle" font-size="16" font-weight="700" fill="#333">STEP 7: COMPUTE REWARDS</text>
+
+  <!-- Coach Rewards box (LEFT side) -->
+  <rect x="110" y="910" width="330" height="100" rx="6" fill="#f5ecd0" stroke="#d4c480" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="275" y="938" text-anchor="middle" font-size="14" font-weight="700" fill="#c0760a">Coach Rewards (per problem)</text>
+  <line x1="145" y1="948" x2="405" y2="948" stroke="#d4c480" stroke-width="0.8"/>
+  <text x="275" y="970" text-anchor="middle" font-size="12" fill="#444">r_uncertainty + r_discussion − r_repetition</text>
+  <text x="275" y="990" text-anchor="middle" font-size="11" fill="#777">max(0, ·) floor · Sliding window buffer (W=10)</text>
+
+  <!-- Player Rewards box (RIGHT side) -->
+  <rect x="590" y="910" width="330" height="100" rx="6" fill="#d5ecd5" stroke="#8cc98c" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="755" y="938" text-anchor="middle" font-size="14" font-weight="700" fill="#2d7a2d">Player Rewards (per agent)</text>
+  <line x1="625" y1="948" x2="885" y2="948" stroke="#8cc98c" stroke-width="0.8"/>
+  <text x="755" y="970" text-anchor="middle" font-size="12" fill="#444">r_correct + r_persuade − r_overlong</text>
+  <text x="755" y="990" text-anchor="middle" font-size="11" fill="#777">Two-pool normalization · Independent EMA (η=0.2)</text>
+
+  <!-- Arrows from rewards to GRPO -->
+  <line x1="275" y1="1010" x2="275" y2="1060" stroke="#555" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="755" y1="1010" x2="755" y2="1060" stroke="#555" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- ================================================================ -->
+  <!-- GRPO UPDATE BOXES -->
+  <!-- ================================================================ -->
+  <!-- Coach GRPO (LEFT side) -->
+  <rect x="110" y="1070" width="330" height="80" rx="8" fill="#e08a2b" filter="url(#shadow)"/>
+  <text x="275" y="1103" text-anchor="middle" font-size="17" font-weight="700" fill="white">Coach GRPO Update</text>
+  <text x="275" y="1128" text-anchor="middle" font-size="12" fill="#fde8c8">Every iteration · Recalibrate difficulty</text>
+
+  <!-- Player GRPO (RIGHT side) -->
+  <rect x="590" y="1070" width="330" height="80" rx="8" fill="#4a9e4a" filter="url(#shadow)"/>
+  <text x="755" y="1103" text-anchor="middle" font-size="17" font-weight="700" fill="white">Player GRPO Update</text>
+  <text x="755" y="1128" text-anchor="middle" font-size="12" fill="#d5ecd5">Alice &amp; Bob update weights independently</text>
+
+
+</svg>
